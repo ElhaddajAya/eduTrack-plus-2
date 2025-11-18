@@ -15,13 +15,31 @@ interface GradeEntryProps {
 export default function GradeEntry({ teacherId }: GradeEntryProps) {
   const [selectedSubject, setSelectedSubject] = useState<string>('');
   const [selectedSemester, setSelectedSemester] = useState<number>(1);
+  const [selectedLevel, setSelectedLevel] = useState<string>('');
+  const [selectedField, setSelectedField] = useState<string>('');
+  const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [gradeData, setGradeData] = useState<Record<string, number>>({});
 
   // Get teacher's subjects from their sessions
   const teacherSessions = sessions.filter(s => s.teacherId === teacherId);
   const teacherSubjects = [...new Set(teacherSessions.map(s => s.subject))];
   const teacherClassIds = [...new Set(teacherSessions.map(s => s.classId))];
+  const teacherClasses = classes.filter(c => teacherClassIds.includes(c.id));
+  const levels = Array.from(new Set(teacherClasses.map(c => c.level)));
+  const fields = Array.from(new Set(teacherClasses.map(c => c.field)));
+  const filteredTeacherClasses = teacherClasses.filter(c =>
+    (selectedLevel ? c.level === selectedLevel : true) &&
+    (selectedField ? c.field === selectedField : true)
+  );
+  const filteredTeacherSubjects = selectedClassId
+    ? Array.from(new Set(teacherSessions.filter(s => s.classId === selectedClassId).map(s => s.subject)))
+    : teacherSubjects;
   const teacherStudents = students.filter(s => teacherClassIds.includes(s.classId));
+  const filteredStudents = teacherStudents.filter(s =>
+    (selectedClassId ? s.classId === selectedClassId : true) &&
+    (selectedLevel ? s.level === selectedLevel : true) &&
+    (selectedField ? s.field === selectedField : true)
+  );
 
   const handleGradeChange = (studentId: string, value: string) => {
     const numValue = parseFloat(value);
@@ -74,7 +92,7 @@ export default function GradeEntry({ teacherId }: GradeEntryProps) {
           <CardDescription>Choisissez la matière et le semestre</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <label className="text-sm">Matière</label>
               <Select value={selectedSubject} onValueChange={setSelectedSubject}>
@@ -82,7 +100,7 @@ export default function GradeEntry({ teacherId }: GradeEntryProps) {
                   <SelectValue placeholder="Sélectionner une matière" />
                 </SelectTrigger>
                 <SelectContent>
-                  {teacherSubjects.map(subject => (
+                  {filteredTeacherSubjects.map(subject => (
                     <SelectItem key={subject} value={subject}>
                       {subject}
                     </SelectItem>
@@ -100,6 +118,46 @@ export default function GradeEntry({ teacherId }: GradeEntryProps) {
                 <SelectContent>
                   <SelectItem value="1">Semestre 1</SelectItem>
                   <SelectItem value="2">Semestre 2</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm">Niveau</label>
+              <Select value={selectedLevel} onValueChange={setSelectedLevel}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Tous" />
+                </SelectTrigger>
+                <SelectContent>
+                  {levels.map(l => (<SelectItem key={l} value={l}>{l}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm">Filière</label>
+              <Select value={selectedField} onValueChange={setSelectedField}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Toutes" />
+                </SelectTrigger>
+                <SelectContent>
+                  {fields.map(f => (<SelectItem key={f} value={f}>{f}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-sm">Classe</label>
+              <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner une classe" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredTeacherClasses.map(cls => (
+                    <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -140,7 +198,7 @@ export default function GradeEntry({ teacherId }: GradeEntryProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {teacherStudents.map((student, index) => {
+                  {filteredStudents.map((student, index) => {
                     const grade = getStudentGrade(student.id);
                     const numGrade = typeof grade === 'number' ? grade : parseFloat(String(grade));
                     const status = !isNaN(numGrade) 

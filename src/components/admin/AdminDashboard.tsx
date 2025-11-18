@@ -24,7 +24,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
       <header className="bg-white border-b border-gray-200">
         <div className="flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 bg-indigo-600 rounded-lg flex items-center justify-center">
+            <div className="h-10 w-10 bg-black rounded-lg flex items-center justify-center">
               <GraduationCap className="h-6 w-6 text-white" />
             </div>
             <div>
@@ -41,7 +41,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
             
             <div className="flex items-center gap-3">
               <Avatar>
-                <AvatarFallback className="bg-indigo-100 text-indigo-700">
+                <AvatarFallback className="bg-green-100 text-green-700">
                   {user.firstName[0]}{user.lastName[0]}
                 </AvatarFallback>
               </Avatar>

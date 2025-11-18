@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
-import { Clock, MapPin, Users } from 'lucide-react';
+import { Clock, MapPin, Users, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { sessions, classes, teachers } from '../../data/mockData';
 
 interface TeacherScheduleProps {
@@ -36,6 +37,13 @@ export default function TeacherSchedule({ teacherId }: TeacherScheduleProps) {
   const teacherSessions = sessions.filter(s => 
     s.teacherId === teacherId || s.replacementTeacherId === teacherId
   );
+
+  const [weekDate, setWeekDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const changeWeek = (offset: number) => {
+    const d = new Date(weekDate);
+    d.setDate(d.getDate() + offset * 7);
+    setWeekDate(d.toISOString().split('T')[0]);
+  };
 
   const getSessionsByDay = (day: string) => {
     return teacherSessions
@@ -127,7 +135,17 @@ export default function TeacherSchedule({ teacherId }: TeacherScheduleProps) {
       {/* Weekly Schedule */}
       <Card>
         <CardHeader>
-          <CardTitle>Mes cours de la semaine</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Mes cours de la semaine</CardTitle>
+            <div className="flex items-center gap-2">
+              <button className="border rounded p-2" onClick={() => changeWeek(-1)}><ChevronLeft className="h-4 w-4" /></button>
+              <div className="flex items-center gap-2 text-sm">
+                <Calendar className="h-4 w-4 text-gray-500" />
+                <input type="date" value={weekDate} onChange={(e) => setWeekDate(e.target.value)} className="border rounded px-2 py-1" />
+              </div>
+              <button className="border rounded p-2" onClick={() => changeWeek(1)}><ChevronRight className="h-4 w-4" /></button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">

@@ -4,6 +4,7 @@ import { Button } from '../ui/button';
 import { Checkbox } from '../ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
+import { Input } from '../ui/input';
 import { Users, CheckCircle2, XCircle, Clock, Calendar } from 'lucide-react';
 import { sessions, students, classes } from '../../data/mockData';
 import { toast } from 'sonner@2.0.3';
@@ -25,12 +26,35 @@ export default function AttendanceMarking({ teacherId }: AttendanceMarkingProps)
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [markAllPresent, setMarkAllPresent] = useState(false);
   const [attendance, setAttendance] = useState<Record<string, StudentAttendance>>({});
+  const [selectedLevel, setSelectedLevel] = useState<string>('');
+  const [selectedField, setSelectedField] = useState<string>('');
+  const [selectedClassId, setSelectedClassId] = useState<string>('');
+  const [selectedSubject, setSelectedSubject] = useState<string>('');
+  const [studentQuery, setStudentQuery] = useState<string>('');
 
   // Get teacher's sessions
   const teacherSessions = sessions.filter(s => s.teacherId === teacherId);
+  const teacherClassIds = [...new Set(teacherSessions.map(s => s.classId))];
+  const teacherClasses = classes.filter(c => teacherClassIds.includes(c.id));
+  const levels = Array.from(new Set(teacherClasses.map(c => c.level)));
+  const fields = Array.from(new Set(teacherClasses.map(c => c.field)));
+  const subjects = Array.from(new Set(teacherSessions.map(s => s.subject)));
+  const filteredTeacherClasses = teacherClasses.filter(c =>
+    (selectedLevel ? c.level === selectedLevel : true) &&
+    (selectedField ? c.field === selectedField : true)
+  );
+  const filteredTeacherSessions = teacherSessions
+    .filter(s => (selectedLevel ? classes.find(c => c.id === s.classId)?.level === selectedLevel : true))
+    .filter(s => (selectedField ? classes.find(c => c.id === s.classId)?.field === selectedField : true))
+    .filter(s => (selectedClassId ? s.classId === selectedClassId : true))
+    .filter(s => (selectedSubject ? s.subject === selectedSubject : true));
+
   const sessionData = sessions.find(s => s.id === selectedSession);
   const classData = sessionData ? classes.find(c => c.id === sessionData.classId) : null;
   const classStudents = classData ? students.filter(s => s.classId === classData.id) : [];
+  const filteredStudents = classStudents.filter(st =>
+    `${st.firstName} ${st.lastName}`.toLowerCase().includes(studentQuery.toLowerCase())
+  );
 
   // Initialize attendance when session changes
   const initializeAttendance = (sessionId: string) => {
@@ -112,6 +136,47 @@ export default function AttendanceMarking({ teacherId }: AttendanceMarkingProps)
           <CardDescription>Sélectionner le cours pour marquer les présences</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm">Niveau</label>
+              <Select value={selectedLevel} onValueChange={setSelectedLevel}>
+                <SelectTrigger><SelectValue placeholder="Tous" /></SelectTrigger>
+                <SelectContent>
+                  {levels.map(l => (<SelectItem key={l} value={l}>{l}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm">Filière</label>
+              <Select value={selectedField} onValueChange={setSelectedField}>
+                <SelectTrigger><SelectValue placeholder="Toutes" /></SelectTrigger>
+                <SelectContent>
+                  {fields.map(f => (<SelectItem key={f} value={f}>{f}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm">Classe</label>
+              <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                <SelectContent>
+                  {filteredTeacherClasses.map(cls => (
+                    <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm">Matière</label>
+              <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+                <SelectTrigger><SelectValue placeholder="Toutes" /></SelectTrigger>
+                <SelectContent>
+                  {subjects.map(su => (<SelectItem key={su} value={su}>{su}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm">Cours</label>
@@ -120,7 +185,7 @@ export default function AttendanceMarking({ teacherId }: AttendanceMarkingProps)
                   <SelectValue placeholder="Sélectionner un cours" />
                 </SelectTrigger>
                 <SelectContent>
-                  {teacherSessions.map(session => {
+                  {filteredTeacherSessions.map(session => {
                     const cls = classes.find(c => c.id === session.classId);
                     return (
                       <SelectItem key={session.id} value={session.id}>
@@ -215,15 +280,21 @@ export default function AttendanceMarking({ teacherId }: AttendanceMarkingProps)
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="mark-all"
-                    checked={markAllPresent}
-                    onCheckedChange={handleMarkAllPresent}
-                  />
-                  <label htmlFor="mark-all" className="text-sm cursor-pointer">
-                    Marquer tout présent
-                  </label>
-                </div>
+                <Input
+                  placeholder="Rechercher un étudiant"
+                  className="w-64"
+                  value={studentQuery}
+                  onChange={(e) => setStudentQuery(e.target.value)}
+                />
+                <Checkbox
+                  id="mark-all"
+                  checked={markAllPresent}
+                  onCheckedChange={handleMarkAllPresent}
+                />
+                <label htmlFor="mark-all" className="text-sm cursor-pointer">
+                  Marquer tout présent
+                </label>
+              </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -257,7 +328,7 @@ export default function AttendanceMarking({ teacherId }: AttendanceMarkingProps)
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {classStudents.map((student, index) => {
+                    {filteredStudents.map((student, index) => {
                       const status = getStatus(student.id);
                       
                       return (

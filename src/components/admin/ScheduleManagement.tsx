@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '../ui/label';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
-import { Calendar, Plus, Clock, MapPin } from 'lucide-react';
+import { Calendar, Plus, Clock, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
 import { classes, sessions, teachers } from '../../data/mockData';
 import { Session } from '../../types';
 import { toast } from 'sonner@2.0.3';
@@ -39,20 +39,45 @@ const STATUS_LABELS: Record<string, string> = {
 export default function ScheduleManagement() {
   const [selectedClass, setSelectedClass] = useState<string>(classes[0]?.id || '');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [sessionList, setSessionList] = useState<Session[]>(sessions);
+  const [selectedLevel, setSelectedLevel] = useState<string>('');
+  const [selectedField, setSelectedField] = useState<string>('');
+  const [weekDate, setWeekDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [editingSession, setEditingSession] = useState<Session | null>(null);
 
-  const classSessions = sessions.filter(s => s.classId === selectedClass);
+  const classSessions = sessionList.filter(s => s.classId === selectedClass);
   const selectedClassData = classes.find(c => c.id === selectedClass);
 
   const handleAddSession = () => {
-    toast.success('Séance ajoutée avec succès');
-    setIsAddDialogOpen(false);
-  };
+  toast.success('Séance ajoutée avec succès');
+  setIsAddDialogOpen(false);
+};
 
-  const getSessionsByDay = (day: string) => {
-    return classSessions
-      .filter(s => s.day === day)
-      .sort((a, b) => a.startTime.localeCompare(b.startTime));
-  };
+const handleUpdateSession = (updated: Session) => {
+  setSessionList(prev => prev.map(s => (s.id === updated.id ? updated : s)));
+  setEditingSession(null);
+  toast.success('Séance mise à jour');
+};
+
+const adjustWeek = (delta: number) => {
+  const d = new Date(weekDate);
+  d.setDate(d.getDate() + delta * 7);
+  setWeekDate(d.toISOString().split('T')[0]);
+};
+
+const levels = Array.from(new Set(classes.map(c => c.level)));
+const fields = Array.from(new Set(classes.map(c => c.field)));
+
+const filteredClasses = classes.filter(c => 
+  (selectedLevel ? c.level === selectedLevel : true) &&
+  (selectedField ? c.field === selectedField : true)
+);
+
+const getSessionsByDay = (day: string) => {
+  return classSessions
+    .filter(s => s.day === day)
+    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+};
 
   return (
     <div className="space-y-6">
@@ -151,25 +176,63 @@ export default function ScheduleManagement() {
       {/* Class Selector */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex items-center gap-4">
-            <Label>Classe:</Label>
-            <Select value={selectedClass} onValueChange={setSelectedClass}>
-              <SelectTrigger className="w-64">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {classes.map(cls => (
-                  <SelectItem key={cls.id} value={cls.id}>
-                    {cls.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {selectedClassData && (
-              <Badge variant="secondary">
-                {selectedClassData.studentIds.length} étudiants
-              </Badge>
-            )}
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Label>Niveau:</Label>
+              <Select value={selectedLevel} onValueChange={setSelectedLevel}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Tous" />
+                </SelectTrigger>
+                <SelectContent>
+                  {levels.map(l => (
+                    <SelectItem key={l} value={l}>{l}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label>Filière:</Label>
+              <Select value={selectedField} onValueChange={setSelectedField}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Toutes" />
+                </SelectTrigger>
+                <SelectContent>
+                  {fields.map(f => (
+                    <SelectItem key={f} value={f}>{f}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label>Classe:</Label>
+              <Select value={selectedClass} onValueChange={setSelectedClass}>
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="Sélectionner" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredClasses.map(cls => (
+                    <SelectItem key={cls.id} value={cls.id}>
+                      {cls.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedClassData && (
+                <Badge variant="secondary">
+                  {selectedClassData.studentIds.length} étudiants
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Label>Semaine:</Label>
+              <Button variant="outline" size="icon" onClick={() => adjustWeek(-1)}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Input type="date" className="w-44" value={weekDate} onChange={e => setWeekDate(e.target.value)} />
+              <Button variant="outline" size="icon" onClick={() => adjustWeek(1)}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -205,7 +268,102 @@ export default function ScheduleManagement() {
         </CardContent>
       </Card>
 
-      {/* Weekly Schedule */}
+      {editingSession && (
+        <Dialog open={!!editingSession} onOpenChange={(open) => !open && setEditingSession(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Modifier la séance</DialogTitle>
+              <DialogDescription>Mettre à jour le statut et les détails</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Statut</Label>
+                  <Select value={editingSession.status} onValueChange={(val) => setEditingSession({ ...editingSession, status: val as any, replacementTeacherId: undefined, postponedTo: undefined, originalSessionId: undefined })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="normal">{STATUS_LABELS['normal']}</SelectItem>
+                      <SelectItem value="cancelled">{STATUS_LABELS['cancelled']}</SelectItem>
+                      <SelectItem value="postponed">{STATUS_LABELS['postponed']}</SelectItem>
+                      <SelectItem value="makeup">{STATUS_LABELS['makeup']}</SelectItem>
+                      <SelectItem value="replaced">{STATUS_LABELS['replaced']}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Salle</Label>
+                  <Input value={editingSession.room} onChange={e => setEditingSession({ ...editingSession, room: e.target.value })} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Heure début</Label>
+                  <Input type="time" value={editingSession.startTime} onChange={e => setEditingSession({ ...editingSession, startTime: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Heure fin</Label>
+                  <Input type="time" value={editingSession.endTime} onChange={e => setEditingSession({ ...editingSession, endTime: e.target.value })} />
+                </div>
+              </div>
+
+              {editingSession.status === 'replaced' && (
+                <div className="space-y-2">
+                  <Label>Professeur remplaçant</Label>
+                  <Select value={editingSession.replacementTeacherId || ''} onValueChange={(val) => setEditingSession({ ...editingSession, replacementTeacherId: val })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner un remplaçant" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {teachers
+                        .filter(t => t.subjects.includes(editingSession.subject) && t.id !== editingSession.teacherId)
+                        .map(t => (
+                          <SelectItem key={t.id} value={t.id}>{t.firstName} {t.lastName} ({t.subjects.join(', ')})</SelectItem>
+                        ))}
+                      {teachers
+                        .filter(t => !t.subjects.includes(editingSession.subject))
+                        .map(t => (
+                          <SelectItem key={t.id} value={t.id}>{t.firstName} {t.lastName}</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {editingSession.status === 'postponed' && (
+                <div className="space-y-2">
+                  <Label>Reporté au</Label>
+                  <Input type="date" value={editingSession.postponedTo || ''} onChange={e => setEditingSession({ ...editingSession, postponedTo: e.target.value })} />
+                </div>
+              )}
+
+              {editingSession.status === 'makeup' && (
+                <div className="space-y-2">
+                  <Label>Rattrapage de</Label>
+                  <Select value={editingSession.originalSessionId || ''} onValueChange={(val) => setEditingSession({ ...editingSession, originalSessionId: val })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner la séance reportée" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sessionList
+                        .filter(s => s.classId === editingSession.classId && s.status === 'postponed')
+                        .map(s => (
+                          <SelectItem key={s.id} value={s.id}>{DAY_LABELS[s.day]} {s.startTime} - {s.subject}</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditingSession(null)}>Annuler</Button>
+              {editingSession && <Button onClick={() => handleUpdateSession(editingSession)}>Enregistrer</Button>}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Emploi du temps */}
       <Card>
         <CardHeader>
           <CardTitle>Emploi du temps de la semaine</CardTitle>
@@ -236,6 +394,7 @@ export default function ScheduleManagement() {
                         <div
                           key={session.id}
                           className={`p-3 rounded-lg border-2 ${STATUS_COLORS[session.status]} hover:shadow-md transition-shadow cursor-pointer`}
+                          onClick={() => setEditingSession(session)}
                         >
                           <div className="flex items-start justify-between mb-2">
                             <div className="text-sm text-indigo-700">{session.startTime} - {session.endTime}</div>
